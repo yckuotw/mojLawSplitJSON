@@ -1,0 +1,52 @@
+name: Sync Fork from Upstream
+
+# 每日從 kong0107/mojLawSplitJSON 自動同步法規資料到此 fork
+# 主要同步 gh-pages 分支（含實際 JSON 資料，提供 GitHub Pages 服務）
+
+on:
+  schedule:
+    # 每日 UTC 19:00 = 台灣時間隔日 03:00（凌晨低流量時段）
+    - cron: '0 19 * * *'
+  workflow_dispatch:  # 允許從 Actions 頁面手動觸發
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: 從原作者同步資料
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 同步 gh-pages 分支（法規資料 — 關鍵分支）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📡 開始同步 gh-pages 分支..."
+          gh repo sync ${{ github.repository }} \
+            --branch gh-pages \
+            --source kong0107/mojLawSplitJSON \
+            --force
+          echo "✅ gh-pages 同步完成"
+
+      - name: 同步 main 分支（程式碼 — 非關鍵）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          echo "📡 開始同步 main 分支..."
+          gh repo sync ${{ github.repository }} \
+            --branch main \
+            --source kong0107/mojLawSplitJSON \
+            --force
+          echo "✅ main 同步完成"
+
+      - name: 執行摘要
+        if: always()
+        run: |
+          echo "🕐 執行時間: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "📊 工作狀態: ${{ job.status }}"
+          echo ""
+          echo "若此工作失敗，GitHub 會自動寄通知到您的信箱。"
+          echo "失敗最常見的原因是原作者 repo 已刪除或改為私有，"
+          echo "屆時應將法規追蹤網頁切換為完全使用您 fork 的版本。"
